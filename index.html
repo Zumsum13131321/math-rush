@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+  <meta charset="UTF-8">
+  <title>Math Rush</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      padding: 30px;
+      background: #e0f7fa;
+    }
+    input, button {
+      padding: 10px;
+      margin: 5px;
+      font-size: 16px;
+    }
+    #game, #gameOver, #leaderboard, #loginForm, #registerForm {
+      display: none;
+    }
+    .option {
+      font-size: 24px;
+      padding: 10px 20px;
+      margin: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>🚀 Math Rush</h1>
+
+  <!-- LOGIN FORM -->
+  <div id="loginForm">
+    <h2>Login</h2>
+    <input type="text" id="loginUser" placeholder="Brugernavn"><br>
+    <input type="password" id="loginPass" placeholder="Adgangskode"><br>
+    <button onclick="login()">Log ind</button>
+    <p>Eller <a href="#" onclick="toggleForms()">opret konto</a></p>
+  </div>
+
+  <!-- REGISTER FORM -->
+  <div id="registerForm">
+    <h2>Registrer</h2>
+    <input type="text" id="regUser" placeholder="Brugernavn"><br>
+    <input type="password" id="regPass" placeholder="Adgangskode"><br>
+    <button onclick="register()">Opret</button>
+    <p>Har du allerede en konto? <a href="#" onclick="toggleForms()">Log ind</a></p>
+  </div>
+
+  <!-- GAME -->
+  <div id="game">
+    <div>
+      Logged in as: <b id="currentUser"></b>
+      <button onclick="logout()">Log ud</button>
+    </div>
+    <div>❤️ Liv: <span id="lives">3</span> | 🧠 Point: <span id="score">0</span></div>
+    <div id="question" style="font-size: 32px; margin: 20px;"></div>
+    <div id="options"></div>
+  </div>
+
+  <!-- GAME OVER -->
+  <div id="gameOver">
+    <h2>Game Over</h2>
+    <p>Din score: <span id="finalScore">0</span></p>
+    <button onclick="startGame()">Spil igen</button>
+    <button onclick="showLeaderboard()">Se leaderboard</button>
+  </div>
+
+  <!-- LEADERBOARD -->
+  <div id="leaderboard">
+    <h2>🏆 Leaderboard</h2>
+    <div id="scoreList"></div>
+    <button onclick="startGame()">Tilbage til spil</button>
+  </div>
+
+  <script>
+    let currentUser = null;
+    let lives = 3;
+    let score = 0;
+    let correctAnswer;
+
+    function toggleForms() {
+      const loginForm = document.getElementById("loginForm");
+      const registerForm = document.getElementById("registerForm");
+      if (loginForm.style.display === "none") {
+        loginForm.style.display = "block";
+        registerForm.style.display = "none";
+      } else {
+        loginForm.style.display = "none";
+        registerForm.style.display = "block";
+      }
+    }
+
+    function register() {
+      const user = document.getElementById("regUser").value.trim();
+      const pass = document.getElementById("regPass").value;
+
+      if (!user || !pass) {
+        alert("Udfyld både brugernavn og adgangskode!");
+        return;
+      }
+
+      let users = localStorage.getItem("users");
+      users = users ? JSON.parse(users) : {};
+
+      if (users[user]) {
+        alert("Brugernavnet findes allerede!");
+        return;
+      }
+
+      users[user] = { password: pass, highscore: 0 };
+      localStorage.setItem("users", JSON.stringify(users));
+
+      alert("Bruger oprettet!");
+      document.getElementById("regUser").value = "";
+      document.getElementById("regPass").value = "";
+      toggleForms();
+    }
+
+    function login() {
+      const user = document.getElementById("loginUser").value.trim();
+      const pass = document.getElementById("loginPass").value;
+
+      const users = JSON.parse(localStorage.getItem("users") || "{}");
+      if (!users[user] || users[user].password !== pass) {
+        alert("Forkert login");
+        return;
+      }
+
+      currentUser = user;
+      document.getElementById("currentUser").textContent = currentUser;
+      document.getElementById("loginForm").style.display = "none";
+      document.getElementById("game").style.display = "block";
+      startGame();
+    }
+
+    function logout() {
+      currentUser = null;
+      document.getElementById("game").style.display = "none";
+      document.getElementById("loginForm").style.display = "block";
+    }
+
+    function startGame() {
+      lives = 3;
+      score = 0;
+      document.getElementById("game").style.display = "block";
+      document.getElementById("gameOver").style.display = "none";
+      document.getElementById("leaderboard").style.display = "none";
+      updateStats();
+      newQuestion();
+    }
+
+    function updateStats() {
+      document.getElementById("lives").textContent = lives;
+      document.getElementById("score").textContent = score;
+    }
+
+    function newQuestion() {
+      const num1 = Math.floor(Math.random() * 10 + 1);
+      const num2 = Math.floor(Math.random() * 10 + 1);
+      const ops = ["+", "-", "*"];
+      const op = ops[Math.floor(Math.random() * ops.length)];
+      correctAnswer = eval(`${num1}${op}${num2}`);
+      document.getElementById("question").textContent = `${num1} ${op} ${num2}`;
+
+      const options = [correctAnswer];
+      while (options.length < 3) {
+        let wrong = correctAnswer + Math.floor(Math.random() * 10 - 5);
+        if (!options.includes(wrong)) options.push(wrong);
+      }
+      options.sort(() => Math.random() - 0.5);
+
+      const container = document.getElementById("options");
+      container.innerHTML = "";
+      for (let opt of options) {
+        const btn = document.createElement("button");
+        btn.className = "option";
+        btn.textContent = opt;
+        btn.onclick = () => checkAnswer(opt);
+        container.appendChild(btn);
+      }
+    }
+
+    function checkAnswer(ans) {
+      if (ans === correctAnswer) {
+        score++;
+      } else {
+        lives--;
+      }
+      updateStats();
+
+      if (lives <= 0) {
+        endGame();
+      } else {
+        newQuestion();
+      }
+    }
+
+    function endGame() {
+      document.getElementById("game").style.display = "none";
+      document.getElementById("gameOver").style.display = "block";
+      document.getElementById("finalScore").textContent = score;
+
+      const users = JSON.parse(localStorage.getItem("users") || "{}");
+      if (score > users[currentUser].highscore) {
+        users[currentUser].highscore = score;
+        localStorage.setItem("users", JSON.stringify(users));
+      }
+    }
+
+    function showLeaderboard() {
+      document.getElementById("gameOver").style.display = "none";
+      document.getElementById("leaderboard").style.display = "block";
+
+      const users = JSON.parse(localStorage.getItem("users") || "{}");
+      const scores = Object.entries(users).map(([user, data]) => ({
+        user, score: data.highscore
+      }));
+      scores.sort((a, b) => b.score - a.score);
+
+      const list = scores.map(s => `<p>${s.user}: ${s.score}</p>`).join("");
+      document.getElementById("scoreList").innerHTML = list;
+    }
+
+    // Vis login form når siden loader
+    document.getElementById("loginForm").style.display = "block";
+  </script>
+
+</body>
+</html>
